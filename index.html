@@ -428,28 +428,26 @@ document.getElementById("reset-btn").addEventListener("click", () => {
 
 // Load data from Google Sheet
 function loadData() {
-  if (SHEET_CSV_URL === "PASTE_YOUR_PUBLISHED_CSV_URL_HERE") {
-    document.getElementById("loading").innerHTML = `
-      <div class="error-msg">
-        <strong>Setup needed:</strong> Open index.html, find the line that says<br>
-        <code>const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTTnbtXGgjaOQaadULMpD6mDqdA1FoQUleJ0NLxiYLf-7gQ98vmlPmAc8wMfYyLL3_axCocTIy_ryMm/pub?gid=1049459030&single=true&output=csv";</code><br>
-        and replace it with your published Google Sheet CSV URL.
-      </div>`;
-    return;
-  }
-  Papa.parse(SHEET_CSV_URL, {
-    download: true,
-    complete: function(results) {
+  fetch(SHEET_CSV_URL)
+    .then(function(response) {
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return response.text();
+    })
+    .then(function(csvText) {
+      const results = Papa.parse(csvText, { skipEmptyLines: true });
       BOOKS = csvToObjects(results).filter(b => b["Book title"]);
+      if (BOOKS.length === 0) {
+        document.getElementById("loading").innerHTML = '<div class="error-msg">The sheet loaded but returned 0 books. Check that the Database tab is published and contains data.</div>';
+        return;
+      }
       buildFilters();
       document.getElementById("loading").style.display = "none";
       document.getElementById("grid").style.display = "grid";
       applyFilters();
-    },
-    error: function(err) {
-      document.getElementById("loading").innerHTML = `<div class="error-msg">Could not load data. Make sure the Google Sheet is published publicly as CSV.<br><small>${err.message || ''}</small></div>`;
-    }
-  });
+    })
+    .catch(function(err) {
+      document.getElementById("loading").innerHTML = '<div class="error-msg">Could not load data. Make sure the Google Sheet is published publicly as CSV.<br><small>' + err.message + '</small></div>';
+    });
 }
 
 loadData();
